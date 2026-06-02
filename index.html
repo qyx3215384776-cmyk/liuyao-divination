@@ -334,9 +334,9 @@
     for (let i=0;i<COIN_COUNT;i++){
       const c = document.createElement("div"); c.className="coin3d";
       const f = document.createElement("div"); f.className="coin-face";
-      f.innerHTML = '<img src="/assets/coin-front.png" alt="铜钱正面" />';
+      f.innerHTML = '<img src="/coin-front.png" alt="铜钱正面" />';
       const b = document.createElement("div"); b.className="coin-face coin-back-face";
-      b.innerHTML = '<img src="/assets/coin-back.png" alt="铜钱背面" />';
+      b.innerHTML = '<img src="/coin-back.png" alt="铜钱背面" />';
       c.appendChild(f); c.appendChild(b);
       stage.appendChild(c); coinNodes.push(c);
     }
