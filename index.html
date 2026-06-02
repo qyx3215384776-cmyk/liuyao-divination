@@ -244,144 +244,57 @@
   </main>
 
 <script>
-   // ===== 3D纵深星河（纯原生JS + Canvas 2D）=====
+  // ===== 全站银河背景（暖金调、广袤、性能自适应）=====
   (function(){
-    var cv = document.getElementById('galaxyBg');
-    var ctx = cv.getContext('2d');
+    const cv = document.getElementById('galaxyBg');
+    const ctx = cv.getContext('2d');
     function size(){ cv.width = window.innerWidth; cv.height = window.innerHeight; }
     size();
-    var W = function(){ return cv.width; };
-    var H = function(){ return cv.height; };
-    var cx = function(){ return W() / 2; };
-    var cy = function(){ return H() / 2; };
+    const W=()=>cv.width, H=()=>cv.height, cx=()=>W()/2, cy=()=>H()/2;
+    const RAD=()=>Math.max(W(),H())*0.95;
 
-    // 性能自适应
-    var isMobile = W() < 700;
-    var COUNT = isMobile ? 1800 : 4500;
-    var FOV = 300;          // 透视焦距，越小透视越强
-    var SPEED = 0.45;       // 朝你飞来的速度
-    var DEPTH_FAR = 2000;   // 最远处
-    var DEPTH_NEAR = 15;    // 最近处（小于此值重置）
+    // 性能自适应：手机/窄屏减少星星数量，防卡顿
+    const small = window.innerWidth < 700;
+    const ARMS = 4, PER = small ? 420 : 1000, BGN = small ? 360 : 850;
 
-    // 粒子结构：x,y,z + 属性
-    var stars = [];
-    var i, j, s;
-
-    // 创建粒子
-    for(i = 0; i < COUNT; i++){
-      stars.push({
-        x: (Math.random() - 0.5) * 2200,
-        y: (Math.random() - 0.5) * 1400,
-        z: Math.random() * (DEPTH_FAR - 400) + 400,
-        size: Math.random() * 2.0 + 0.35,
-        hue: Math.random() < 0.55 ? '238,224,194'
-           : (Math.random() < 0.55 ? '212,176,106' : '254,206,144'),
-        twinklePhase: Math.random() * 6.283,
-        twinkleSpeed: Math.random() * 0.022 + 0.006
-      });
-    }
-
-    // 给65%的粒子分配螺旋臂结构
-    var ARM_COUNT = 4;
-    var armCount = Math.floor(COUNT * 0.65);
-    for(i = 0; i < armCount; i++){
-      s = stars[i];
-      var armIndex = i % ARM_COUNT;
-      var t = Math.pow(Math.random(), 0.58);
-      var angle = t * 3.6 * Math.PI + armIndex * (2 * Math.PI / ARM_COUNT);
-      var radius = t * 520 + (Math.random() - 0.5) * 85;
-      s.x = Math.cos(angle) * radius;
-      s.y = Math.sin(angle) * radius * 0.28;
-    }
-
-    // 投影缓存
-    var px, py, pSize, scale, alpha, tw, depthFade;
-    var halfW, halfH;
-
-    function draw(){
-      halfW = W();
-      halfH = H();
-
-      // 黑色底色
-      ctx.fillStyle = '#020101';
-      ctx.fillRect(0, 0, halfW, halfH);
-
-      // 远处银河核心的暖色辉光
-      var glowR = Math.max(halfW, halfH) * 0.55;
-      var grad = ctx.createRadialGradient(cx(), cy() * 0.9, 0, cx(), cy() * 0.9, glowR);
-      grad.addColorStop(0, 'rgba(70,48,22,0.3)');
-      grad.addColorStop(0.3, 'rgba(32,20,9,0.1)');
-      grad.addColorStop(1, 'rgba(2,1,1,0)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, halfW, halfH);
-
-      // 按z排序：远的先画，近的后画
-      stars.sort(function(a, b){ return b.z - a.z; });
-
-      for(j = 0; j < COUNT; j++){
-        s = stars[j];
-
-        // Z轴流动：朝你飞来
-        s.z -= SPEED;
-
-        // 飞出近处后重置到远处
-        if(s.z < DEPTH_NEAR){
-          s.z = DEPTH_FAR - Math.random() * 300;
-          s.x = (Math.random() - 0.5) * 2200;
-          s.y = (Math.random() - 0.5) * 1400;
-          s.size = Math.random() * 2.0 + 0.35;
-        }
-
-        // 透视投影：近大远小
-        scale = FOV / s.z;
-        px = cx() + s.x * scale;
-        py = cy() + s.y * scale;
-
-        // 超出屏幕不画
-        if(px < -80 || px > halfW + 80 || py < -80 || py > halfH + 80) continue;
-
-        // 大小随距离
-        pSize = s.size * scale;
-
-        // 亮度随距离：近的亮，远的暗
-        depthFade = (DEPTH_FAR - s.z) / (DEPTH_FAR - DEPTH_NEAR);
-        if(depthFade < 0.06) depthFade = 0.06;
-        if(depthFade > 1) depthFade = 1;
-
-        // 闪烁
-        tw = 0.35 + 0.65 * Math.abs(Math.sin(s.twinklePhase += s.twinkleSpeed));
-        alpha = depthFade * tw;
-
-        // 近处的星星画光晕（十字或圆形辉光）
-        if(scale > 0.9){
-          ctx.globalAlpha = alpha * 0.18;
-          ctx.fillStyle = 'rgba(' + s.hue + ',1)';
-          ctx.beginPath();
-          ctx.arc(px, py, pSize * 4, 0, 6.2832);
-          ctx.fill();
-        }
-
-        // 中等距离的星星画小光晕
-        if(scale > 0.35){
-          ctx.globalAlpha = alpha * 0.1;
-          ctx.fillStyle = 'rgba(' + s.hue + ',1)';
-          ctx.beginPath();
-          ctx.arc(px, py, pSize * 1.8, 0, 6.2832);
-          ctx.fill();
-        }
-
-        // 星星本体
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = 'rgba(' + s.hue + ',1)';
-        ctx.beginPath();
-        ctx.arc(px, py, Math.max(0.4, pSize), 0, 6.2832);
-        ctx.fill();
+    const arm=[];
+    for(let a=0;a<ARMS;a++){
+      for(let i=0;i<PER;i++){
+        const t=Math.pow(Math.random(),0.55);
+        const ang=t*3.4*Math.PI + a*(2*Math.PI/ARMS);
+        const jitter=(1-t)*0.45+0.06;
+        arm.push({ tR:t, off:(Math.random()-0.5)*jitter, baseA:ang+(Math.random()-0.5)*0.4,
+          sz:Math.random()*1.4+0.25,
+          hue: Math.random()<0.62?'240,228,200':(Math.random()<0.6?'214,180,110':'255,208,150'),
+          tw:Math.random()*6.28, tws:Math.random()*0.05+0.01 });
       }
+    }
+    const bg=[];
+    for(let i=0;i<BGN;i++){ bg.push({x:Math.random(),y:Math.random(),sz:Math.random()*1.1+0.2,
+      tw:Math.random()*6.28,tws:Math.random()*0.04+0.006,
+      hue:Math.random()<0.7?'230,222,205':'200,180,140'}); }
 
-      ctx.globalAlpha = 1;
+    let rot=0;
+    function draw(){
+      rot+=0.0011;
+      ctx.clearRect(0,0,W(),H());
+      const g=ctx.createRadialGradient(cx(),cy(),0,cx(),cy(),RAD()*0.75);
+      g.addColorStop(0,'rgba(90,66,32,0.45)'); g.addColorStop(0.35,'rgba(44,30,15,0.2)'); g.addColorStop(1,'rgba(1,1,1,0)');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W(),H());
+      bg.forEach(s=>{ const tw=0.35+0.65*Math.abs(Math.sin(s.tw+=s.tws));
+        ctx.globalAlpha=tw*0.55; ctx.fillStyle=`rgb(${s.hue})`;
+        ctx.beginPath(); ctx.arc(s.x*W(),s.y*H(),s.sz,0,6.28); ctx.fill(); });
+      const R=RAD();
+      arm.forEach(s=>{
+        const rad=s.tR*R + s.off*R; const a=s.baseA+rot;
+        const x=cx()+Math.cos(a)*rad, y=cy()+Math.sin(a)*rad*0.82;
+        const tw=0.45+0.55*Math.sin(s.tw+=s.tws);
+        ctx.globalAlpha=Math.min(1,tw); ctx.fillStyle=`rgba(${s.hue},${tw})`;
+        ctx.beginPath(); ctx.arc(x,y,s.sz,0,6.28); ctx.fill();
+      });
+      ctx.globalAlpha=1;
       requestAnimationFrame(draw);
     }
-
     draw();
     window.addEventListener('resize', size);
   })();
