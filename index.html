@@ -296,6 +296,7 @@
   }
 
   function onHandResults(results) {
+  console.log('hand detected:', results.multiHandLandmarks?.length || 0);
     if (mode !== "gesture" || busy || gestureCooldown) return;
     const hasHand = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
     if (!hasHand) {
