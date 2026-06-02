@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>六爻 · 易经占卜</title>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+<style>
+  :root {
+    --ink: #f0e8d8; --ink-soft: #c9b88f;
+    --paper: #0a0705; --paper-deep: #050303;
+    --gold: #d8b463; --gold-bright: #f0d488;
+    --crimson: #b8863a; --line: rgba(216,180,99,.22);
+    --panel: rgba(18,14,10,.62);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
+    background: #020101;
+    color: var(--ink); min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 28px 18px; line-height: 1.85;
+    overflow-x: hidden;
+  }
+
+  /* 全站 3D 银河纵深背景 */
+  #galaxyBg {
+    position: fixed; inset: 0; width: 100vw; height: 100vh;
+    z-index: 0; display: block;
+  }
+
+  /* 开场动画层 */
+  #intro {
+    position: fixed; inset: 0; z-index: 50;
+    background: radial-gradient(ellipse at 50% 50%, #15100a 0%, #0a0705 55%, #010101 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: opacity 1.2s ease; cursor: pointer;
+  }
+  #intro.hide { opacity: 0; pointer-events: none; }
+  #introBagua { opacity: 0; animation: baguaIn 2.4s ease 1.2s forwards; }
+  .bagua-svg { display: block; animation: spin 28s linear infinite; filter: drop-shadow(0 0 32px rgba(212,170,90,.55)); }
+  #introTitle { opacity: 0; animation: titleIn 2s ease 3s forwards; text-align: center; margin-top: 14px; }
+  .intro-main { font-size: 32px; letter-spacing: .5em; text-indent: .5em; color: #f0e4cc; font-weight: 600; text-shadow: 0 0 20px rgba(212,170,90,.5); }
+  .intro-sub { font-size: 12.5px; letter-spacing: .18em; color: #b09a68; margin-top: 12px; line-height: 1.9; }
+  #introSkip { position: absolute; bottom: 38px; font-size: 12px; letter-spacing: .3em; color: #8a7548; opacity: 0; animation: titleIn 1.5s ease 4.2s forwards; }
+  @keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+  @keyframes baguaIn { from{opacity:0; transform:scale(.4)} to{opacity:1; transform:scale(1)} }
+  @keyframes titleIn { from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:translateY(0)} }
+  
+  .scroll {
+    width: 100%; max-width: 540px; position: relative; z-index: 1;
+    background: rgba(14,10,7,.82);
+    border: 1px solid var(--line); border-radius: 6px;
+    box-shadow: 0 20px 70px rgba(0,0,0,.7);
+    padding: 40px 34px 36px;
+  }
+  @supports (backdrop-filter: blur(5px)) {
+    .scroll { background: var(--panel); backdrop-filter: blur(5px); }
+  }
+  .scroll::before, .scroll::after {
+    content: ""; position: absolute; left: 22px; right: 22px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .scroll::before { top: 14px; } .scroll::after { bottom: 14px; }
+  h1 { text-align: center; font-size: 30px; letter-spacing: .4em; font-weight: 600; margin-bottom: 4px; text-indent: .4em; color: var(--gold-bright); text-shadow: 0 0 18px rgba(216,180,99,.35); }
+  .subtitle { text-align: center; font-size: 13px; letter-spacing: .3em; color: var(--gold); margin-bottom: 28px; }
+  label { display: block; font-size: 15px; color: var(--ink-soft); margin-bottom: 10px; letter-spacing: .08em; }
+  textarea {
+    width: 100%; min-height: 78px; resize: vertical;
+    background: rgba(10,7,5,.65); border: 1px solid var(--line); border-radius: 3px;
+    padding: 13px 15px; font-size: 16px; font-family: inherit; color: var(--ink); transition: border-color .3s;
+  }
+  textarea:focus { outline: none; border-color: var(--gold); }
+  textarea::placeholder { color: #6a5c3e; }
+  textarea:disabled { opacity:.6; }
+  .hint { font-size: 12.5px; color: #8a7c5e; margin-top: 8px; letter-spacing: .04em; }
+
+  button.cast {
+    display: block; width: 100%; margin-top: 22px;
+    background: linear-gradient(180deg, var(--crimson), #6e4f1e);
+    color: #1a1206; border: none; border-radius: 3px;
+    padding: 15px; font-size: 17px; letter-spacing: .35em; text-indent: .35em;
+    font-family: inherit; cursor: pointer; font-weight: 600;
+    box-shadow: 0 6px 22px rgba(216,180,99,.25);
+    transition: transform .15s, box-shadow .3s, opacity .3s;
+  }
+  button.cast:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 9px 28px rgba(216,180,99,.4); }
+  button.cast:disabled { opacity: .5; cursor: default; }
+
+  /* ===== 掷币台 ===== */
+  .toss-area { margin-top: 26px; display: none; }
+  .toss-area.show { display: block; animation: fadeUp .6s ease both; }
+  .stage {
+    height: 132px; display: flex; align-items: flex-end; justify-content: center;
+    gap: 24px; perspective: 1000px; margin-bottom: 8px;
+  }
+  .coin3d { width: 70px; height: 70px; position: relative; transform-style: preserve-3d; }
+  .coin-face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 50%; }
+  .coin-face img { width: 100%; height: 100%; display: block; }
+  .coin-back-face { transform: rotateX(180deg); }
+  .coin-back-face img { transform: scaleY(-1); }
+  @keyframes throwUp {
+    0%   { transform: translateY(0) rotateX(0deg); }
+    50%  { transform: translateY(-104px) rotateX(900deg); }
+    100% { transform: translateY(0) rotateX(1800deg); }
+  }
+  @keyframes landBounce {
+    0%{transform:translateY(0);} 40%{transform:translateY(-13px);} 70%{transform:translateY(-4px);} 100%{transform:translateY(0);}
+  }
+  .toss-status { text-align: center; color: var(--ink-soft); font-size: 14.5px; min-height: 24px; }
+
+  /* 模式切换 */
+  .mode-switch { display: flex; justify-content: center; gap: 0; margin: 4px 0 14px; }
+  .mode-btn {
+    font-family: inherit; font-size: 13px; letter-spacing: .15em;
+    padding: 7px 18px; border: 1px solid var(--line); background: rgba(216,180,99,.08);
+    color: var(--ink-soft); cursor: pointer; transition: all .25s;
+  }
+  .mode-btn:first-child { border-radius: 3px 0 0 3px; border-right: none; }
+  .mode-btn:last-child { border-radius: 0 3px 3px 0; }
+  .mode-btn.active { background: var(--crimson); color: #1a1206; border-color: var(--crimson); }
+
+  /* 摄像头画面区 */
+  .cam-wrap {
+    display: none; position: relative; width: 280px; height: 210px;
+    margin: 0 auto 14px; border-radius: 6px; overflow: hidden;
+    border: 1px solid var(--line); background: #1a1410;
+  }
+  .cam-wrap.show { display: block; }
+  .cam-wrap video, .cam-wrap canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; transform: scaleX(-1);
+  }
+  .cam-badge {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: rgba(26,20,16,.72); color: #f4e6c8;
+    font-size: 13px; letter-spacing: .1em; text-align: center; padding: 7px;
+  }
+  .yao-strip { display: flex; flex-direction: column-reverse; gap: 6px; align-items: center; margin-top: 14px; }
+  .yao-bar { display: flex; align-items: center; justify-content: center; gap: 9px; height: 14px; }
+  .yao-line { width: 116px; height: 9px; display:flex; justify-content:space-between; }
+  .yao-line .seg { height: 9px; background: var(--gold); border-radius: 2px; box-shadow: 0 0 8px rgba(216,180,99,.4); }
+  .yao-line.yang .seg { width: 116px; }
+  .yao-line.yin .seg { width: 50px; }
+  .yao-dot { color: var(--gold-bright); font-size: 12px; }
+
+  /* ===== 结果区 ===== */
+  .result { margin-top: 30px; display: none; animation: fadeUp .8s ease both; }
+  @keyframes fadeUp { from { opacity:0; transform: translateY(14px);} to {opacity:1; transform:none;} }
+  .gua-head { text-align: center; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+  .symbols { font-size: 40px; letter-spacing: .15em; margin-bottom: 6px; color: var(--gold-bright); text-shadow: 0 0 16px rgba(216,180,99,.4); }
+  .gua-name { font-size: 25px; font-weight: 600; letter-spacing: .25em; text-indent: .25em; color: var(--gold-bright); }
+  .gua-meta { font-size: 13px; color: var(--gold); letter-spacing: .2em; margin-top: 4px; }
+  .xiang { font-size: 14.5px; color: var(--ink-soft); font-style: italic; text-align: center; margin: 16px 0; padding: 0 6px; }
+  .section-title { font-size: 13px; color: var(--gold); letter-spacing: .3em; margin: 22px 0 8px; text-align: center; }
+  .section-title::before, .section-title::after { content: "—"; color: var(--gold); margin: 0 8px; opacity:.6; }
+  .interpretation { font-size: 15.5px; color: var(--ink); white-space: pre-wrap; }
+  #interpretation { line-height: 2; }
+  .disclaimer { margin-top: 26px; padding-top: 14px; border-top: 1px dashed var(--line); font-size: 11.5px; color: #8a7c5e; text-align: center; letter-spacing: .05em; }
+  .loading { text-align: center; color: var(--gold); font-size: 14px; letter-spacing: .25em; padding: 24px 0; display: none; }
+  .loading.show { display: block; animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:.4;} 50%{opacity:1;} }
+  .error { color: var(--crimson); font-size: 14px; text-align: center; margin-top: 16px; display:none; }
+</style>
+</head>
+<body>
+  <canvas id="galaxyBg"></canvas>
+
+  <div id="intro">
+    <div id="introBagua">
+      <svg viewBox="0 0 220 220" width="190" height="190" class="bagua-svg">
+        <circle cx="110" cy="110" r="62" fill="none" stroke="#d8b463" stroke-width="1.2" opacity=".85"/>
+        <path d="M 110 48 A 62 62 0 0 1 110 172 A 31 31 0 0 1 110 110 A 31 31 0 0 0 110 48 Z" fill="#f0e4cc" opacity=".92"/>
+        <path d="M 110 48 A 62 62 0 0 0 110 172 A 31 31 0 0 0 110 110 A 31 31 0 0 1 110 48 Z" fill="#0a0705" stroke="#d8b463" stroke-width=".4"/>
+        <circle cx="110" cy="79" r="8" fill="#0a0705"/>
+        <circle cx="110" cy="141" r="8" fill="#f0e4cc"/>
+        <g fill="#c79f56" font-size="19" font-family="serif">
+          <text x="110" y="22" text-anchor="middle" dominant-baseline="central">☰</text>
+          <text x="172" y="48" text-anchor="middle" dominant-baseline="central">☴</text>
+          <text x="198" y="110" text-anchor="middle" dominant-baseline="central">☵</text>
+          <text x="172" y="172" text-anchor="middle" dominant-baseline="central">☶</text>
+          <text x="110" y="198" text-anchor="middle" dominant-baseline="central">☷</text>
+          <text x="48" y="172" text-anchor="middle" dominant-baseline="central">☳</text>
+          <text x="22" y="110" text-anchor="middle" dominant-baseline="central">☲</text>
+          <text x="48" y="48" text-anchor="middle" dominant-baseline="central">☱</text>
+        </g>
+      </svg>
+    </div>
+    <div id="introTitle">
+      <div class="intro-main">六爻卜卦</div>
+      <div class="intro-sub">心诚则灵　一事一问<br>抛掷六次　以成卦象</div>
+    </div>
+    <div id="introSkip">轻触进入</div>
+  </div>
+
+  <main class="scroll">
+    <h1>六爻</h1>
+    <p class="subtitle">易 經 占 卜</p>
+
+    <label for="q">心中所问</label>
+    <textarea id="q" placeholder="写下你想问的一件事…"></textarea>
+    <p class="hint">① 每次只问一个具体问题（例："明天吃螺蛳粉会胖吗？"），避免笼统问"事业如何"或同时问多个不相关事件。<br><br>② 描述问题最好包含：动词（能否、是否）＋具体动作＋期限/对象。</p>
+    <button class="cast" id="startBtn">起 卦</button>
+
+    <div class="toss-area" id="tossArea">
+      <div class="stage" id="stage"></div>
+
+      <div class="mode-switch">
+        <button class="mode-btn active" id="modeBtnBtn" data-mode="button">点按抛币</button>
+        <button class="mode-btn" id="modeBtnGesture" data-mode="gesture">手势抛币</button>
+      </div>
+
+      <div class="cam-wrap" id="camWrap">
+        <video id="cam" autoplay playsinline muted></video>
+        <canvas id="camOverlay"></canvas>
+        <div class="cam-badge" id="gestureState">摄像头启动中…</div>
+      </div>
+
+      <div class="toss-status" id="tossStatus">心中默念所问，亲手掷出第一爻</div>
+      <div class="yao-strip" id="yaoStrip"></div>
+      <button class="cast" id="tossBtn">抛 掷（第 1 爻）</button>
+    </div>
+
+    <div class="loading" id="loading">铜钱落定，正在为你解卦…</div>
+    <div class="error" id="error"></div>
+
+    <section class="result" id="result">
+      <div class="gua-head">
+        <div class="symbols" id="symbols"></div>
+        <div class="gua-name" id="guaName"></div>
+        <div class="gua-meta" id="guaMeta"></div>
+      </div>
+      <p class="xiang" id="xiang"></p>
+      <div class="section-title">卦 义</div>
+      <div class="interpretation" id="meaning"></div>
+      <div class="section-title">为你解读</div>
+      <div class="interpretation" id="interpretation"></div>
+      <p class="disclaimer">占卜结果仅供参考与自我省思，重大决策请咨询专业人士。</p>
+    </section>
+  </main>
+
+<script>
+  // ===== 3D立体纵深银河引擎 (近大远小、穿越延展感) =====
+  (function(){
+    const cv = document.getElementById('galaxyBg');
+    const ctx = cv.getContext('2d');
+    
+    function size(){ cv.width = window.innerWidth; cv.height = window.innerHeight; }
+    size();
+
+    const isMobile = window.innerWidth < 700;
+    // 粒子总数设定
+    const PARTICLE_COUNT = isMobile ? 800 : 1800; 
+    const ARMS = 3; // 银河旋臂数量
+
+    // 3D 相机与透视配置参数
+    const FOV = 250;           // 焦距，控制透视缩放强弱
+    const CAMERA_Z = 400;      // 相机距离原点的 Z 轴距离
+    const GALAXY_RADIUS = 380; // 银河系在 3D 空间里的最大半径
+
+    // 视角倾斜度（3D 旋转）：
+    // 通过将星盘绕 X 轴旋转（例如 70度），把“俯视平面”压低成具有深远感的前后延伸厚星河
+    const PITCH = 72 * Math.PI / 180; 
+    const YAW_SPEED = 0.0015;          // 星旋自转的基础速度
+
+    const stars = [];
+
+    // 初始化 3D 空间粒子坐标
+    for(let i = 0; i < PARTICLE_COUNT; i++) {
+      // 粒子沿旋臂分布：使中心浓密，越往外越稀疏
+      const r = Math.pow(Math.random(), 2.2) * GALAXY_RADIUS; 
+      
+      // 分配所属旋臂，并加入渐进的螺旋扭曲角 (r * 0.015) 形成完美的旋臂弯曲
+      const armIndex = i % ARMS;
+      const baseAngle = (armIndex * (2 * Math.PI / ARMS)) + (r * 0.015);
+      // 允许粒子在旋臂附近有一些随机散射抖动
+      const angle = baseAngle + (Math.random() - 0.5) * (0.35 + (80 / (r + 10)));
+
+      // 赋予星河一定的立体厚度（产生带有厚度的云雾星核感）
+      const thickness = (1.0 - (r / GALAXY_RADIUS)) * 32 + 4;
+      const localY = (Math.random() - 0.5) * thickness; 
+
+      // 确定它在星系平面内的 3D 本地物理坐标
+      const localX = Math.cos(angle) * r;
+      const localZ = Math.sin(angle) * r;
+
+      // 暖金调/古玉色调随机配比
+      let color = '240,228,200';
+      const randColor = Math.random();
+      if (randColor < 0.3) {
+        color = '216,180,99';  // 深金
+      } else if (randColor < 0.5) {
+        color = '255,245,225'; // 亮白金
+      } else if (randColor < 0.65) {
+        color = '166,134,74';  // 暗金
+      }
+
+      stars.push({
+        lx: localX,
+        ly: localY,
+        lz: localZ,
+        r: r,
+        baseAngle: angle,
+        size: Math.random() * 1.5 + 0.3,
+        color: color,
+        tw: Math.random() * Math.PI * 2,         // 呼吸闪烁初相位
+        tws: Math.random() * 0.04 + 0.015        // 呼吸速度
+      });
+    }
+
+    let currentYaw = 0;
+
+    function draw(){
+      currentYaw += YAW_SPEED;
+      
+      // 清空画布并绘制深邃幽暗的空间基底环境光晕
+      ctx.fillStyle = '#020101';
+      ctx.fillRect(0, 0, cv.width, cv.height);
+
+      const cx = cv.width / 2;
+      const cy = cv.height / 2;
+
+      // 营造视觉焦点中心的温暖金光核
+      const centerGlow = ctx.createRadialGradient(cx, cy * 0.9, 0, cx, cy * 0.9, Math.min(cv.width, cv.height) * 0.45);
+      centerGlow.addColorStop(0, 'rgba(80, 58, 28, 0.35)');
+      centerGlow.addColorStop(0.4, 'rgba(30, 20, 10, 0.12)');
+      centerGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = centerGlow;
+      ctx.fillRect(0, 0, cv.width, cv.height);
+
+      // 按照 3D 渲染的“画家算法”，需要先对星体计算投影，并依投影后的 Z 轴深度做降序排序，
+      // 从而让远处的星星正确地被近处的星星及前景组件遮挡重叠，建立完美的前后空间感。
+      const renderList = [];
+
+      for(let i = 0; i < PARTICLE_COUNT; i++) {
+        const s = stars[i];
+        
+        // 1. 绕星盘 Y 轴（自转）
+        const rotX = Math.cos(currentYaw) * s.lx - Math.sin(currentYaw) * s.lz;
+        const rotZ = Math.sin(currentYaw) * s.lx + Math.cos(currentYaw) * s.lz;
+        const rotY = s.ly;
+
+        // 2. 将整个星盘绕 X 轴进行 Pitch（向后倾斜），从而由“俯视平盘”变为“纵深星河”
+        const transX = rotX;
+        const transY = Math.cos(PITCH) * rotY - Math.sin(PITCH) * rotZ;
+        const transZ = Math.sin(PITCH) * rotY + Math.cos(PITCH) * rotZ;
+
+        // 3. 将相机坐标移入（使星系处于世界中央，相机在其前方拉开距离）
+        const finalZ = transZ + CAMERA_Z;
+
+        // 若粒子越过相机裁剪面，则放弃渲染，防止发生负除法导致画面反向反转
+        if (finalZ <= 10) continue;
+
+        // 4. 透视除法（核心：实现近大远小、近快远慢的立体纵深）
+        const scale = FOV / finalZ;
+        const screenX = cx + transX * scale;
+        // 微调丫轴中心落点，让星盘核心完美卡在页面中央卡片的偏下方，形成向四周蔓延的环抱感
+        const screenY = cy * 0.95 + transY * scale;
+
+        // 如果超出屏幕可视边缘过多，跳过绘制以优化性能
+        if (screenX < -50 || screenX > cv.width + 50 || screenY < -50 || screenY > cv.height + 50) continue;
+
+        // 计算星星闪烁的微弱呼吸透明度
+        s.tw += s.tws;
+        const opacityFactor = 0.4 + 0.6 * Math.abs(Math.sin(s.tw));
+        
+        // 越靠近镜头的粒子越亮、越大（近大远小）
+        const distanceFade = Math.min(2.0, Math.max(0.1, (GALAXY_RADIUS * 1.5) / finalZ));
+        const finalSize = s.size * scale * 0.35;
+        const finalAlpha = Math.min(1.0, opacityFactor * distanceFade * 0.7);
+
+        renderList.push({
+          x: screenX,
+          y: screenY,
+          size: Math.max(0.3, finalSize),
+          color: s.color,
+          alpha: finalAlpha,
+          z: finalZ // 留作深度排序依据
+        });
+      }
+
+      // 按照 Z 轴从远到近（Z值从大到小）排序，确保画面渲染图层正确
+      renderList.sort((a, b) => b.z - a.z);
+
+      // 开始进行批量绘制
+      renderList.forEach(p => {
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = `rgba(${p.color}, ${p.alpha})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+
+      ctx.globalAlpha = 1.0;
+      requestAnimationFrame(draw);
+    }
+
+    draw();
+    window.addEventListener('resize', () => { size(); });
+  })();
+
+  // ===== 开场动画：点击或 6 秒后淡出进入 =====
+  (function(){
+    const intro = document.getElementById('intro');
+    let entered = false;
+    function enter(){
+      if(entered) return; entered=true;
+      intro.classList.add('hide');
+      setTimeout(()=>{ intro.style.display='none'; }, 1300);
+    }
+    intro.addEventListener('click', enter);
+    setTimeout(enter, 6000);
+  })();
+</script>
+<script>
+  // ===== 保持原有的六爻掷币台与业务逻辑控制 =====
+  const COIN_COUNT = 3;
+  const q = document.getElementById("q");
+  const startBtn = document.getElementById("startBtn");
+  const tossArea = document.getElementById("tossArea");
+  const stage = document.getElementById("stage");
+  const tossStatus = document.getElementById("tossStatus");
+  const tossBtn = document.getElementById("tossBtn");
+  const yaoStrip = document.getElementById("yaoStrip");
+  const loading = document.getElementById("loading");
+  const result = document.getElementById("result");
+  const errorBox = document.getElementById("error");
+
+  const YAO = {6:"老阴 ⚋（变）",7:"少阳 ⚊",8:"少阴 ⚋",9:"老阳 ⚊（变）"};
+  let coinNodes = [], yaos = [], busy = false;
+
+  let mode = "button"; 
+  const modeBtnBtn = document.getElementById("modeBtnBtn");
+  const modeBtnGesture = document.getElementById("modeBtnGesture");
+  const camWrap = document.getElementById("camWrap");
+  const gestureStateEl = document.getElementById("gestureState");
+
+  modeBtnBtn.addEventListener("click", () => setMode("button"));
+  modeBtnGesture.addEventListener("click", () => setMode("gesture"));
+
+  function setMode(m) {
+    if (busy) return;
+    mode = m;
+    modeBtnBtn.classList.toggle("active", m === "button");
+    modeBtnGesture.classList.toggle("active", m === "gesture");
+    if (m === "gesture") {
+      camWrap.classList.add("show");
+      tossBtn.style.display = "none";
+      startGesture();
+    } else {
+      camWrap.classList.remove("show");
+      tossBtn.style.display = "block";
+      stopGesture();
+    }
+  }
+
+  let hands = null, camera = null, gestureReady = false;
+  let lastOpen = false;        
+  let gestureCooldown = false; 
+  const COOLDOWN_MS = 2000;    
+  const OPEN_THRESHOLD = 3;    
+  const CLOSE_THRESHOLD = 1;   
+
+  function countExtendedFingers(lm) {
+    let n = 0;
+    for (const [tip, pip] of [[8,6],[12,10],[16,14],[20,18]]) {
+      if (lm[tip].y < lm[pip].y) n++;
+    }
+    if (lm[4].y < lm[3].y) n++;
+    return n;
+  }
+
+  async function startGesture() {
+    const cam = document.getElementById("cam");
+    if (typeof Hands === "undefined" || typeof Camera === "undefined") {
+      gestureStateEl.textContent = "手势库未加载，请检查网络或改用点按抛币";
+      return;
+    }
+    gestureStateEl.textContent = "正在请求摄像头权限…";
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 320, height: 240, facingMode: "user" }
+      });
+      cam.srcObject = stream;
+
+      if (!hands) {
+        hands = new Hands({ locateFile: (f) =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}` });
+        hands.setOptions({
+          maxNumHands: 1, modelComplexity: 1,
+          minDetectionConfidence: 0.6, minTrackingConfidence: 0.6,
+        });
+        hands.onResults(onHandResults);
+      }
+      camera = new Camera(cam, {
+        onFrame: async () => { await hands.send({ image: cam }); },
+        width: 320, height: 240,
+      });
+      await camera.start();
+      gestureReady = true;
+      gestureStateEl.textContent = "请把手张开，对准镜头";
+    } catch (e) {
+      console.error(e);
+      gestureStateEl.textContent = "无法打开摄像头，请允许权限或改用点按抛币";
+      setMode("button");
+    }
+  }
+
+  function stopGesture() {
+    if (camera) { try { camera.stop(); } catch(e){} camera = null; }
+    const cam = document.getElementById("cam");
+    if (cam && cam.srcObject) {
+      cam.srcObject.getTracks().forEach(t => t.stop());
+      cam.srcObject = null;
+    }
+    gestureReady = false; lastOpen = false;
+  }
+
+  function onHandResults(results) {
+    if (mode !== "gesture" || busy || gestureCooldown) return;
+    const hasHand = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
+    if (!hasHand) {
+      gestureStateEl.textContent = "未检测到手，请把手对准镜头";
+      lastOpen = false;
+      return;
+    }
+    if (yaos.length >= 6) { gestureStateEl.textContent = "六爻已成"; return; }
+
+    const n = countExtendedFingers(results.multiHandLandmarks[0]);
+
+    if (n >= OPEN_THRESHOLD) {
+      gestureStateEl.textContent = "已握住铜钱，握拳掷出 ✊";
+      lastOpen = true;
+    } else if (n <= CLOSE_THRESHOLD) {
+      if (lastOpen) {
+        lastOpen = false;
+        gestureCooldown = true;
+        gestureStateEl.textContent = "💥 掷出！";
+        performToss().then(() => {
+          setTimeout(() => {
+            gestureCooldown = false;
+            if (yaos.length < 6) gestureStateEl.textContent = "请再次张开手，准备下一爻";
+          }, COOLDOWN_MS);
+        });
+      }
+    }
+  }
+
+  function buildCoins() {
+    stage.innerHTML = ""; coinNodes = [];
+    for (let i=0; i<COIN_COUNT; i++){
+      const c = document.createElement("div"); c.className="coin3d";
+      const f = document.createElement("div"); f.className="coin-face";
+      f.innerHTML = '<img src="/coin-front.png" alt="铜钱正面" />';
+      const b = document.createElement("div"); b.className="coin-face coin-back-face";
+      b.innerHTML = '<img src="/coin-back.png" alt="铜钱背面" />';
+      c.appendChild(f); c.appendChild(b);
+      stage.appendChild(c); coinNodes.push(c);
+    }
+  }
+
+  function throwCoins(results) {
+    return new Promise(resolve => {
+      coinNodes.forEach((c,i) => {
+        c.style.animation = "none"; void c.offsetWidth;
+        const dur = 0.85 + i*0.06;
+        c.style.animation = `throwUp ${dur}s cubic-bezier(.3,0,.5,1) forwards`;
+        setTimeout(() => {
+          const finalX = results[i] ? 0 : 180;  
+          c.style.animation = "none"; void c.offsetWidth;
+          c.style.transform = `rotateX(${finalX}deg)`;
+          c.style.animation = "landBounce .4s ease-out";
+        }, dur*1000);
+      });
+      setTimeout(resolve, 1120);
+    });
+  }
+
+  function drawYao(yang, changing) {
+    const bar = document.createElement("div"); bar.className="yao-bar";
+    const line = document.createElement("div");
+    line.className = "yao-line " + (yang ? "yang" : "yin");
+    line.innerHTML = yang ? '<span class="seg"></span>'
+                          : '<span class="seg"></span><span class="seg"></span>';
+    bar.appendChild(line);
+    if (changing){ const d=document.createElement("span"); d.className="yao-dot"; d.textContent="○"; bar.appendChild(d); }
+    yaoStrip.appendChild(bar);
+  }
+
+  async function performToss() {
+    if (busy) return;
+    if (yaos.length >= 6) return;
+    busy = true; tossBtn.disabled = true;
+    tossStatus.textContent = "铜钱抛向空中……";
+
+    const res = coinNodes.map(()=> Math.random()<0.5); 
+    await throwCoins(res);
+
+    const sum = res.reduce((s,x)=> s+(x?2:3), 0); 
+    const yang = (sum===7||sum===9), changing = (sum===6||sum===9);
+    yaos.push({ value: sum });
+    drawYao(yang, changing);
+    tossStatus.innerHTML = `三枚：${res.map(x=>x?"字":"背").join(" · ")}　点数 ${sum}　—　第 ${yaos.length} 爻 ${YAO[sum]}`;
+
+    if (yaos.length >= 6){
+      tossBtn.disabled = true;
+      tossStatus.innerHTML += "<br>六爻已成，正在为你解卦……";
+      stopGesture(); 
+      await divine();
+      busy = false;
+      return;
+    }
+    tossBtn.textContent = `抛 掷（第 ${yaos.length+1} 爻）`;
+    tossBtn.disabled = false; busy = false;
+  }
+
+  startBtn.addEventListener("click", () => {
+    errorBox.style.display="none";
+    if (!q.value.trim()){ errorBox.textContent="请先写下你心中所问。"; errorBox.style.display="block"; return; }
+    q.disabled = true; startBtn.style.display="none";
+    buildCoins(); tossArea.classList.add("show");
+    yaos = []; tossStatus.textContent="心中默念所问，亲手掷出第一爻";
+    tossBtn.textContent="抛 掷（第 1 爻）";
+  });
+
+  tossBtn.addEventListener("click", async () => {
+    if (yaos.length >= 6){ location.reload(); return; } 
+    await performToss();
+  });
+
+  async function divine() {
+    tossArea.style.display = "none";
+    loading.classList.add("show");
+    errorBox.style.display = "none";
+    try {
+      const resp = await fetch("/api/divine", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ question: q.value.trim(), yaos })
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "解卦失败");
+      const h = data.hexagram;
+      document.getElementById("symbols").textContent = h.upperSymbol + " " + h.lowerSymbol;
+      document.getElementById("guaName").textContent = h.fullName;
+      document.getElementById("guaMeta").textContent = h.trait + " · " + h.level;
+      document.getElementById("xiang").textContent = "象曰：" + h.xiang;
+      document.getElementById("meaning").textContent = h.meaning;
+      document.getElementById("interpretation").textContent = data.interpretation;
+      result.style.display = "block";
+    } catch(e){
+      errorBox.textContent = e.message; errorBox.style.display="block";
+      tossArea.style.display = "block";
+    } finally {
+      loading.classList.remove("show");
+    }
+  }
+</script>
+</body>
+</html>
