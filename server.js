@@ -25,7 +25,7 @@ const path = require("path");
 
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public"))); // 提供前端页面
+app.use(express.static(__dirname));; // 提供前端页面
 
 // ===== 读入 64 卦数据（启动时加载一次）=====
 const hexagrams = JSON.parse(fs.readFileSync(path.join(__dirname, "hexagrams.json"), "utf-8"));
