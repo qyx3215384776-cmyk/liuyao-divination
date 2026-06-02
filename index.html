@@ -8,54 +8,81 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <style>
   :root {
-    --ink: #1a1410; --ink-soft: #4a3f35;
-    --paper: #f4ece0; --paper-deep: #e9dcc7;
-    --gold: #a8843f; --gold-bright: #c9a45c;
-    --crimson: #7c2d2d; --line: rgba(60,45,30,.18);
+    --ink: #f0e8d8; --ink-soft: #c9b88f;
+    --paper: #0a0705; --paper-deep: #050303;
+    --gold: #d8b463; --gold-bright: #f0d488;
+    --crimson: #b8863a; --line: rgba(216,180,99,.22);
+    --panel: rgba(18,14,10,.62);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
-    background: radial-gradient(circle at 50% 0%, #f9f3e8 0%, var(--paper) 45%, var(--paper-deep) 100%);
+    background: #020101;
     color: var(--ink); min-height: 100vh;
     display: flex; align-items: center; justify-content: center;
     padding: 28px 18px; line-height: 1.85;
   }
+
+  /* 全站银河背景 */
+  #galaxyBg {
+    position: fixed; inset: 0; width: 100vw; height: 100vh;
+    z-index: 0; display: block;
+  }
+
+  /* 开场动画层 */
+  #intro {
+    position: fixed; inset: 0; z-index: 50;
+    background: radial-gradient(ellipse at 50% 50%, #15100a 0%, #0a0705 55%, #010101 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: opacity 1.2s ease; cursor: pointer;
+  }
+  #intro.hide { opacity: 0; pointer-events: none; }
+  #introBagua { opacity: 0; animation: baguaIn 2.4s ease 1.2s forwards; }
+  .bagua-svg { display: block; animation: spin 28s linear infinite; filter: drop-shadow(0 0 32px rgba(212,170,90,.55)); }
+  #introTitle { opacity: 0; animation: titleIn 2s ease 3s forwards; text-align: center; margin-top: 14px; }
+  .intro-main { font-size: 32px; letter-spacing: .5em; text-indent: .5em; color: #f0e4cc; font-weight: 600; text-shadow: 0 0 20px rgba(212,170,90,.5); }
+  .intro-sub { font-size: 12.5px; letter-spacing: .18em; color: #b09a68; margin-top: 12px; line-height: 1.9; }
+  #introSkip { position: absolute; bottom: 38px; font-size: 12px; letter-spacing: .3em; color: #8a7548; opacity: 0; animation: titleIn 1.5s ease 4.2s forwards; }
+  @keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+  @keyframes baguaIn { from{opacity:0; transform:scale(.4)} to{opacity:1; transform:scale(1)} }
+  @keyframes titleIn { from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:translateY(0)} }
   .scroll {
-    width: 100%; max-width: 540px;
-    background: linear-gradient(180deg, rgba(255,252,245,.9), rgba(244,236,224,.85));
-    border: 1px solid var(--line); border-radius: 4px;
-    box-shadow: 0 20px 60px rgba(40,25,10,.18), inset 0 0 60px rgba(200,170,110,.08);
-    padding: 40px 34px 36px; position: relative;
+    width: 100%; max-width: 540px; position: relative; z-index: 1;
+    background: var(--panel);
+    backdrop-filter: blur(3px);
+    border: 1px solid var(--line); border-radius: 6px;
+    box-shadow: 0 20px 70px rgba(0,0,0,.5), inset 0 0 80px rgba(216,180,99,.05);
+    padding: 40px 34px 36px;
   }
   .scroll::before, .scroll::after {
     content: ""; position: absolute; left: 22px; right: 22px; height: 1px;
     background: linear-gradient(90deg, transparent, var(--gold), transparent);
   }
   .scroll::before { top: 14px; } .scroll::after { bottom: 14px; }
-  h1 { text-align: center; font-size: 30px; letter-spacing: .4em; font-weight: 600; margin-bottom: 4px; text-indent: .4em; }
+  h1 { text-align: center; font-size: 30px; letter-spacing: .4em; font-weight: 600; margin-bottom: 4px; text-indent: .4em; color: var(--gold-bright); text-shadow: 0 0 18px rgba(216,180,99,.35); }
   .subtitle { text-align: center; font-size: 13px; letter-spacing: .3em; color: var(--gold); margin-bottom: 28px; }
   label { display: block; font-size: 15px; color: var(--ink-soft); margin-bottom: 10px; letter-spacing: .08em; }
   textarea {
     width: 100%; min-height: 78px; resize: vertical;
-    background: rgba(255,255,255,.5); border: 1px solid var(--line); border-radius: 3px;
+    background: rgba(10,7,5,.5); border: 1px solid var(--line); border-radius: 3px;
     padding: 13px 15px; font-size: 16px; font-family: inherit; color: var(--ink); transition: border-color .3s;
   }
   textarea:focus { outline: none; border-color: var(--gold); }
+  textarea::placeholder { color: #6a5c3e; }
   textarea:disabled { opacity:.6; }
-  .hint { font-size: 12.5px; color: #9a8c78; margin-top: 8px; letter-spacing: .04em; }
+  .hint { font-size: 12.5px; color: #8a7c5e; margin-top: 8px; letter-spacing: .04em; }
 
   button.cast {
     display: block; width: 100%; margin-top: 22px;
-    background: linear-gradient(180deg, var(--crimson), #5e2020);
-    color: #f4e6c8; border: none; border-radius: 3px;
+    background: linear-gradient(180deg, var(--crimson), #6e4f1e);
+    color: #1a1206; border: none; border-radius: 3px;
     padding: 15px; font-size: 17px; letter-spacing: .35em; text-indent: .35em;
-    font-family: inherit; cursor: pointer;
-    box-shadow: 0 6px 18px rgba(124,45,45,.3);
+    font-family: inherit; cursor: pointer; font-weight: 600;
+    box-shadow: 0 6px 22px rgba(216,180,99,.25);
     transition: transform .15s, box-shadow .3s, opacity .3s;
   }
-  button.cast:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 9px 24px rgba(124,45,45,.4); }
-  button.cast:disabled { opacity: .55; cursor: default; }
+  button.cast:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 9px 28px rgba(216,180,99,.4); }
+  button.cast:disabled { opacity: .5; cursor: default; }
 
   /* ===== 掷币台 ===== */
   .toss-area { margin-top: 26px; display: none; }
@@ -83,12 +110,12 @@
   .mode-switch { display: flex; justify-content: center; gap: 0; margin: 4px 0 14px; }
   .mode-btn {
     font-family: inherit; font-size: 13px; letter-spacing: .15em;
-    padding: 7px 18px; border: 1px solid var(--line); background: rgba(255,255,255,.4);
+    padding: 7px 18px; border: 1px solid var(--line); background: rgba(216,180,99,.08);
     color: var(--ink-soft); cursor: pointer; transition: all .25s;
   }
   .mode-btn:first-child { border-radius: 3px 0 0 3px; border-right: none; }
   .mode-btn:last-child { border-radius: 0 3px 3px 0; }
-  .mode-btn.active { background: var(--crimson); color: #f4e6c8; border-color: var(--crimson); }
+  .mode-btn.active { background: var(--crimson); color: #1a1206; border-color: var(--crimson); }
 
   /* 摄像头画面区 */
   .cam-wrap {
@@ -109,24 +136,24 @@
   .yao-strip { display: flex; flex-direction: column-reverse; gap: 6px; align-items: center; margin-top: 14px; }
   .yao-bar { display: flex; align-items: center; justify-content: center; gap: 9px; height: 14px; }
   .yao-line { width: 116px; height: 9px; display:flex; justify-content:space-between; }
-  .yao-line .seg { height: 9px; background: var(--ink); border-radius: 2px; }
+  .yao-line .seg { height: 9px; background: var(--gold); border-radius: 2px; box-shadow: 0 0 8px rgba(216,180,99,.4); }
   .yao-line.yang .seg { width: 116px; }
   .yao-line.yin .seg { width: 50px; }
-  .yao-dot { color: var(--crimson); font-size: 12px; }
+  .yao-dot { color: var(--gold-bright); font-size: 12px; }
 
   /* ===== 结果区 ===== */
   .result { margin-top: 30px; display: none; animation: fadeUp .8s ease both; }
   @keyframes fadeUp { from { opacity:0; transform: translateY(14px);} to {opacity:1; transform:none;} }
   .gua-head { text-align: center; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
-  .symbols { font-size: 40px; letter-spacing: .15em; margin-bottom: 6px; }
-  .gua-name { font-size: 25px; font-weight: 600; letter-spacing: .25em; text-indent: .25em; }
+  .symbols { font-size: 40px; letter-spacing: .15em; margin-bottom: 6px; color: var(--gold-bright); text-shadow: 0 0 16px rgba(216,180,99,.4); }
+  .gua-name { font-size: 25px; font-weight: 600; letter-spacing: .25em; text-indent: .25em; color: var(--gold-bright); }
   .gua-meta { font-size: 13px; color: var(--gold); letter-spacing: .2em; margin-top: 4px; }
   .xiang { font-size: 14.5px; color: var(--ink-soft); font-style: italic; text-align: center; margin: 16px 0; padding: 0 6px; }
-  .section-title { font-size: 13px; color: var(--crimson); letter-spacing: .3em; margin: 22px 0 8px; text-align: center; }
-  .section-title::before, .section-title::after { content: "—"; color: var(--gold); margin: 0 8px; }
+  .section-title { font-size: 13px; color: var(--gold); letter-spacing: .3em; margin: 22px 0 8px; text-align: center; }
+  .section-title::before, .section-title::after { content: "—"; color: var(--gold); margin: 0 8px; opacity:.6; }
   .interpretation { font-size: 15.5px; color: var(--ink); white-space: pre-wrap; }
   #interpretation { line-height: 2; }
-  .disclaimer { margin-top: 26px; padding-top: 14px; border-top: 1px dashed var(--line); font-size: 11.5px; color: #9a8c78; text-align: center; letter-spacing: .05em; }
+  .disclaimer { margin-top: 26px; padding-top: 14px; border-top: 1px dashed var(--line); font-size: 11.5px; color: #8a7c5e; text-align: center; letter-spacing: .05em; }
   .loading { text-align: center; color: var(--gold); font-size: 14px; letter-spacing: .25em; padding: 24px 0; display: none; }
   .loading.show { display: block; animation: pulse 1.5s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:.4;} 50%{opacity:1;} }
@@ -134,13 +161,44 @@
 </style>
 </head>
 <body>
+  <!-- 全站银河背景 -->
+  <canvas id="galaxyBg"></canvas>
+
+  <!-- 开场动画层 -->
+  <div id="intro">
+    <div id="introBagua">
+      <svg viewBox="0 0 220 220" width="190" height="190" class="bagua-svg">
+        <circle cx="110" cy="110" r="62" fill="none" stroke="#d8b463" stroke-width="1.2" opacity=".85"/>
+        <path d="M 110 48 A 62 62 0 0 1 110 172 A 31 31 0 0 1 110 110 A 31 31 0 0 0 110 48 Z" fill="#f0e4cc" opacity=".92"/>
+        <path d="M 110 48 A 62 62 0 0 0 110 172 A 31 31 0 0 0 110 110 A 31 31 0 0 1 110 48 Z" fill="#0a0705" stroke="#d8b463" stroke-width=".4"/>
+        <circle cx="110" cy="79" r="8" fill="#0a0705"/>
+        <circle cx="110" cy="141" r="8" fill="#f0e4cc"/>
+        <g fill="#c79f56" font-size="19" font-family="serif">
+          <text x="110" y="22" text-anchor="middle" dominant-baseline="central">☰</text>
+          <text x="172" y="48" text-anchor="middle" dominant-baseline="central">☴</text>
+          <text x="198" y="110" text-anchor="middle" dominant-baseline="central">☵</text>
+          <text x="172" y="172" text-anchor="middle" dominant-baseline="central">☶</text>
+          <text x="110" y="198" text-anchor="middle" dominant-baseline="central">☷</text>
+          <text x="48" y="172" text-anchor="middle" dominant-baseline="central">☳</text>
+          <text x="22" y="110" text-anchor="middle" dominant-baseline="central">☲</text>
+          <text x="48" y="48" text-anchor="middle" dominant-baseline="central">☱</text>
+        </g>
+      </svg>
+    </div>
+    <div id="introTitle">
+      <div class="intro-main">六爻卜卦</div>
+      <div class="intro-sub">心诚则灵　一事一问<br>抛掷六次　以成卦象</div>
+    </div>
+    <div id="introSkip">轻触进入</div>
+  </div>
+
   <main class="scroll">
     <h1>六爻</h1>
     <p class="subtitle">易 經 占 卜</p>
 
     <label for="q">心中所问</label>
-  <<textarea id="q" placeholder=""></textarea>
-   <p class="hint">① 每次只问一个具体问题（例："明天吃螺蛳粉会胖吗？"），避免笼统问"事业如何"或同时问多个不相关事件。<br><br>② 描述问题最好包含：动词（能否、是否）＋具体动作＋期限/对象。</p>
+    <textarea id="q" placeholder="写下你想问的一件事…"></textarea>
+    <p class="hint">① 每次只问一个具体问题（例："明天吃螺蛳粉会胖吗？"），避免笼统问"事业如何"或同时问多个不相关事件。<br><br>② 描述问题最好包含：动词（能否、是否）＋具体动作＋期限/对象。</p>
     <button class="cast" id="startBtn">起 卦</button>
 
     <!-- 掷币台 -->
@@ -184,7 +242,71 @@
   </main>
 
 <script>
-  const COIN_COUNT = 3;
+  // ===== 全站银河背景（暖金调、广袤、性能自适应）=====
+  (function(){
+    const cv = document.getElementById('galaxyBg');
+    const ctx = cv.getContext('2d');
+    function size(){ cv.width = window.innerWidth; cv.height = window.innerHeight; }
+    size();
+    const W=()=>cv.width, H=()=>cv.height, cx=()=>W()/2, cy=()=>H()/2;
+    const RAD=()=>Math.max(W(),H())*0.95;
+
+    // 性能自适应：手机/窄屏减少星星数量，防卡顿
+    const small = window.innerWidth < 700;
+    const ARMS = 4, PER = small ? 420 : 1000, BGN = small ? 360 : 850;
+
+    const arm=[];
+    for(let a=0;a<ARMS;a++){
+      for(let i=0;i<PER;i++){
+        const t=Math.pow(Math.random(),0.55);
+        const ang=t*3.4*Math.PI + a*(2*Math.PI/ARMS);
+        const jitter=(1-t)*0.45+0.06;
+        arm.push({ tR:t, off:(Math.random()-0.5)*jitter, baseA:ang+(Math.random()-0.5)*0.4,
+          sz:Math.random()*1.4+0.25,
+          hue: Math.random()<0.62?'240,228,200':(Math.random()<0.6?'214,180,110':'255,208,150'),
+          tw:Math.random()*6.28, tws:Math.random()*0.05+0.01 });
+      }
+    }
+    const bg=[];
+    for(let i=0;i<BGN;i++){ bg.push({x:Math.random(),y:Math.random(),sz:Math.random()*1.1+0.2,
+      tw:Math.random()*6.28,tws:Math.random()*0.04+0.006,
+      hue:Math.random()<0.7?'230,222,205':'200,180,140'}); }
+
+    let rot=0;
+    function draw(){
+      rot+=0.0011;
+      ctx.clearRect(0,0,W(),H());
+      const g=ctx.createRadialGradient(cx(),cy(),0,cx(),cy(),RAD()*0.75);
+      g.addColorStop(0,'rgba(90,66,32,0.45)'); g.addColorStop(0.35,'rgba(44,30,15,0.2)'); g.addColorStop(1,'rgba(1,1,1,0)');
+      ctx.fillStyle=g; ctx.fillRect(0,0,W(),H());
+      bg.forEach(s=>{ const tw=0.35+0.65*Math.abs(Math.sin(s.tw+=s.tws));
+        ctx.globalAlpha=tw*0.55; ctx.fillStyle=`rgb(${s.hue})`;
+        ctx.beginPath(); ctx.arc(s.x*W(),s.y*H(),s.sz,0,6.28); ctx.fill(); });
+      const R=RAD();
+      arm.forEach(s=>{
+        const rad=s.tR*R + s.off*R; const a=s.baseA+rot;
+        const x=cx()+Math.cos(a)*rad, y=cy()+Math.sin(a)*rad*0.82;
+        const tw=0.45+0.55*Math.sin(s.tw+=s.tws);
+        ctx.globalAlpha=Math.min(1,tw); ctx.fillStyle=`rgba(${s.hue},${tw})`;
+        ctx.beginPath(); ctx.arc(x,y,s.sz,0,6.28); ctx.fill();
+      });
+      ctx.globalAlpha=1;
+      requestAnimationFrame(draw);
+    }
+    draw();
+    window.addEventListener('resize', size);
+  })();
+
+  // ===== 开场动画：点击或 6 秒后淡出进入 =====
+  (function(){
+    const intro = document.getElementById('intro');
+    let entered = false;
+    function enter(){ if(entered) return; entered=true; intro.classList.add('hide'); }
+    intro.addEventListener('click', enter);
+    setTimeout(enter, 6000); // 看完整段动画后自动进入
+  })();
+</script>
+<script>
   const q = document.getElementById("q");
   const startBtn = document.getElementById("startBtn");
   const tossArea = document.getElementById("tossArea");
