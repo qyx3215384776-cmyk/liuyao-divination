@@ -269,13 +269,13 @@
         });
         hands.onResults(onHandResults);
       }
-      camera = new Camera(cam, {
-        onFrame: async () => {
-          if (mode === "gesture") await hands.send({ image: cam });
-        },
-        width: 320, height: 240,
-      });
-      await camera.start();
+     camera = new Camera(cam, {
+  onFrame: async () => {
+    await hands.send({ image: cam });
+  },
+  width: 320, height: 240,
+});
+await camera.start();
       gestureReady = true;
       gestureStateEl.textContent = "请把手张开，对准镜头";
     } catch (e) {
