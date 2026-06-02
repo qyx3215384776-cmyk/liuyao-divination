@@ -48,11 +48,13 @@
   @keyframes titleIn { from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:translateY(0)} }
   .scroll {
     width: 100%; max-width: 540px; position: relative; z-index: 1;
-    background: var(--panel);
-    backdrop-filter: blur(3px);
+    background: rgba(14,10,7,.82);
     border: 1px solid var(--line); border-radius: 6px;
-    box-shadow: 0 20px 70px rgba(0,0,0,.5), inset 0 0 80px rgba(216,180,99,.05);
+    box-shadow: 0 20px 70px rgba(0,0,0,.5);
     padding: 40px 34px 36px;
+  }
+  @supports (backdrop-filter: blur(3px)) {
+    .scroll { background: var(--panel); backdrop-filter: blur(3px); }
   }
   .scroll::before, .scroll::after {
     content: ""; position: absolute; left: 22px; right: 22px; height: 1px;
@@ -301,9 +303,14 @@
   (function(){
     const intro = document.getElementById('intro');
     let entered = false;
-    function enter(){ if(entered) return; entered=true; intro.classList.add('hide'); }
+    function enter(){
+      if(entered) return; entered=true;
+      intro.classList.add('hide');
+      // 淡出结束后彻底移除，确保不会残留遮挡下方按钮
+      setTimeout(()=>{ intro.style.display='none'; }, 1300);
+    }
     intro.addEventListener('click', enter);
-    setTimeout(enter, 6000); // 看完整段动画后自动进入
+    setTimeout(enter, 6000);
   })();
 </script>
 <script>
