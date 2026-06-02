@@ -231,7 +231,7 @@
   let lastOpen = false;        // 上一帧手是否张开
   let gestureCooldown = false; // 抛币后冷却，防止一次动作连触发
   const COOLDOWN_MS = 2000;    // 冷却时长，留足抛币动画时间
-  const OPEN_THRESHOLD = 4;    // 伸直手指 ≥ 此数 → 判为"张开"（含拇指共5指）
+  const OPEN_THRESHOLD = 3;    // 伸直手指 ≥ 此数 → 判为"张开"（含拇指共5指）
   const CLOSE_THRESHOLD = 1;   // 伸直手指 ≤ 此数 → 判为"握拳"
 
   // 数有几根手指伸直（含大拇指）。MediaPipe 坐标 y 向下，指尖 y < 关节 y = 伸直。
