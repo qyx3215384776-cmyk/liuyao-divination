@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>六爻 · 易经占卜</title>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<style>
+  :root {
+    --ink: #1a1410; --ink-soft: #4a3f35;
+    --paper: #f4ece0; --paper-deep: #e9dcc7;
+    --gold: #a8843f; --gold-bright: #c9a45c;
+    --crimson: #7c2d2d; --line: rgba(60,45,30,.18);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Songti SC", "STSong", "SimSun", "Noto Serif SC", serif;
+    background: radial-gradient(circle at 50% 0%, #f9f3e8 0%, var(--paper) 45%, var(--paper-deep) 100%);
+    color: var(--ink); min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 28px 18px; line-height: 1.85;
+  }
+  .scroll {
+    width: 100%; max-width: 540px;
+    background: linear-gradient(180deg, rgba(255,252,245,.9), rgba(244,236,224,.85));
+    border: 1px solid var(--line); border-radius: 4px;
+    box-shadow: 0 20px 60px rgba(40,25,10,.18), inset 0 0 60px rgba(200,170,110,.08);
+    padding: 40px 34px 36px; position: relative;
+  }
+  .scroll::before, .scroll::after {
+    content: ""; position: absolute; left: 22px; right: 22px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .scroll::before { top: 14px; } .scroll::after { bottom: 14px; }
+  h1 { text-align: center; font-size: 30px; letter-spacing: .4em; font-weight: 600; margin-bottom: 4px; text-indent: .4em; }
+  .subtitle { text-align: center; font-size: 13px; letter-spacing: .3em; color: var(--gold); margin-bottom: 28px; }
+  label { display: block; font-size: 15px; color: var(--ink-soft); margin-bottom: 10px; letter-spacing: .08em; }
+  textarea {
+    width: 100%; min-height: 78px; resize: vertical;
+    background: rgba(255,255,255,.5); border: 1px solid var(--line); border-radius: 3px;
+    padding: 13px 15px; font-size: 16px; font-family: inherit; color: var(--ink); transition: border-color .3s;
+  }
+  textarea:focus { outline: none; border-color: var(--gold); }
+  textarea:disabled { opacity:.6; }
+  .hint { font-size: 12.5px; color: #9a8c78; margin-top: 8px; letter-spacing: .04em; }
+
+  button.cast {
+    display: block; width: 100%; margin-top: 22px;
+    background: linear-gradient(180deg, var(--crimson), #5e2020);
+    color: #f4e6c8; border: none; border-radius: 3px;
+    padding: 15px; font-size: 17px; letter-spacing: .35em; text-indent: .35em;
+    font-family: inherit; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(124,45,45,.3);
+    transition: transform .15s, box-shadow .3s, opacity .3s;
+  }
+  button.cast:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 9px 24px rgba(124,45,45,.4); }
+  button.cast:disabled { opacity: .55; cursor: default; }
+
+  /* ===== 掷币台 ===== */
+  .toss-area { margin-top: 26px; display: none; }
+  .toss-area.show { display: block; animation: fadeUp .6s ease both; }
+  .stage {
+    height: 132px; display: flex; align-items: flex-end; justify-content: center;
+    gap: 24px; perspective: 1000px; margin-bottom: 8px;
+  }
+  .coin3d { width: 70px; height: 70px; position: relative; transform-style: preserve-3d; }
+  .coin-face { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 50%; }
+  .coin-face img { width: 100%; height: 100%; display: block; }
+  .coin-back-face { transform: rotateX(180deg); }
+  .coin-back-face img { transform: scaleY(-1); }
+  @keyframes throwUp {
+    0%   { transform: translateY(0) rotateX(0deg); }
+    50%  { transform: translateY(-104px) rotateX(900deg); }
+    100% { transform: translateY(0) rotateX(1800deg); }
+  }
+  @keyframes landBounce {
+    0%{transform:translateY(0);} 40%{transform:translateY(-13px);} 70%{transform:translateY(-4px);} 100%{transform:translateY(0);}
+  }
+  .toss-status { text-align: center; color: var(--ink-soft); font-size: 14.5px; min-height: 24px; }
+
+  /* 模式切换 */
+  .mode-switch { display: flex; justify-content: center; gap: 0; margin: 4px 0 14px; }
+  .mode-btn {
+    font-family: inherit; font-size: 13px; letter-spacing: .15em;
+    padding: 7px 18px; border: 1px solid var(--line); background: rgba(255,255,255,.4);
+    color: var(--ink-soft); cursor: pointer; transition: all .25s;
+  }
+  .mode-btn:first-child { border-radius: 3px 0 0 3px; border-right: none; }
+  .mode-btn:last-child { border-radius: 0 3px 3px 0; }
+  .mode-btn.active { background: var(--crimson); color: #f4e6c8; border-color: var(--crimson); }
+
+  /* 摄像头画面区 */
+  .cam-wrap {
+    display: none; position: relative; width: 280px; height: 210px;
+    margin: 0 auto 14px; border-radius: 6px; overflow: hidden;
+    border: 1px solid var(--line); background: #1a1410;
+  }
+  .cam-wrap.show { display: block; }
+  .cam-wrap video, .cam-wrap canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; transform: scaleX(-1); /* 镜像，更自然 */
+  }
+  .cam-badge {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: rgba(26,20,16,.72); color: #f4e6c8;
+    font-size: 13px; letter-spacing: .1em; text-align: center; padding: 7px;
+  }
+  .yao-strip { display: flex; flex-direction: column-reverse; gap: 6px; align-items: center; margin-top: 14px; }
+  .yao-bar { display: flex; align-items: center; justify-content: center; gap: 9px; height: 14px; }
+  .yao-line { width: 116px; height: 9px; display:flex; justify-content:space-between; }
+  .yao-line .seg { height: 9px; background: var(--ink); border-radius: 2px; }
+  .yao-line.yang .seg { width: 116px; }
+  .yao-line.yin .seg { width: 50px; }
+  .yao-dot { color: var(--crimson); font-size: 12px; }
+
+  /* ===== 结果区 ===== */
+  .result { margin-top: 30px; display: none; animation: fadeUp .8s ease both; }
+  @keyframes fadeUp { from { opacity:0; transform: translateY(14px);} to {opacity:1; transform:none;} }
+  .gua-head { text-align: center; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+  .symbols { font-size: 40px; letter-spacing: .15em; margin-bottom: 6px; }
+  .gua-name { font-size: 25px; font-weight: 600; letter-spacing: .25em; text-indent: .25em; }
+  .gua-meta { font-size: 13px; color: var(--gold); letter-spacing: .2em; margin-top: 4px; }
+  .xiang { font-size: 14.5px; color: var(--ink-soft); font-style: italic; text-align: center; margin: 16px 0; padding: 0 6px; }
+  .section-title { font-size: 13px; color: var(--crimson); letter-spacing: .3em; margin: 22px 0 8px; text-align: center; }
+  .section-title::before, .section-title::after { content: "—"; color: var(--gold); margin: 0 8px; }
+  .interpretation { font-size: 15.5px; color: var(--ink); white-space: pre-wrap; }
+  #interpretation { line-height: 2; }
+  .disclaimer { margin-top: 26px; padding-top: 14px; border-top: 1px dashed var(--line); font-size: 11.5px; color: #9a8c78; text-align: center; letter-spacing: .05em; }
+  .loading { text-align: center; color: var(--gold); font-size: 14px; letter-spacing: .25em; padding: 24px 0; display: none; }
+  .loading.show { display: block; animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:.4;} 50%{opacity:1;} }
+  .error { color: var(--crimson); font-size: 14px; text-align: center; margin-top: 16px; display:none; }
+</style>
+</head>
+<body>
+  <main class="scroll">
+    <h1>六爻</h1>
+    <p class="subtitle">易 經 占 卜</p>
+
+    <label for="q">心中所问</label>
+    <textarea id="q" placeholder="请默想并写下你想问的一件事，例如：我是否该接受这份新的工作机会？"></textarea>
+    <p class="hint">※ 占卜贵在心诚，一次只问一件具体的事。</p>
+
+    <button class="cast" id="startBtn">起 卦</button>
+
+    <!-- 掷币台 -->
+    <div class="toss-area" id="tossArea">
+      <div class="stage" id="stage"></div>
+
+      <!-- 模式切换 -->
+      <div class="mode-switch">
+        <button class="mode-btn active" id="modeBtnBtn" data-mode="button">点按抛币</button>
+        <button class="mode-btn" id="modeBtnGesture" data-mode="gesture">手势抛币</button>
+      </div>
+
+      <!-- 摄像头画面区（仅手势模式显示） -->
+      <div class="cam-wrap" id="camWrap">
+        <video id="cam" autoplay playsinline muted></video>
+        <canvas id="camOverlay"></canvas>
+        <div class="cam-badge" id="gestureState">摄像头启动中…</div>
+      </div>
+
+      <div class="toss-status" id="tossStatus">心中默念所问，亲手掷出第一爻</div>
+      <div class="yao-strip" id="yaoStrip"></div>
+      <button class="cast" id="tossBtn">抛 掷（第 1 爻）</button>
+    </div>
+
+    <div class="loading" id="loading">铜钱落定，正在为你解卦…</div>
+    <div class="error" id="error"></div>
+
+    <section class="result" id="result">
+      <div class="gua-head">
+        <div class="symbols" id="symbols"></div>
+        <div class="gua-name" id="guaName"></div>
+        <div class="gua-meta" id="guaMeta"></div>
+      </div>
+      <p class="xiang" id="xiang"></p>
+      <div class="section-title">卦 义</div>
+      <div class="interpretation" id="meaning"></div>
+      <div class="section-title">为你解读</div>
+      <div class="interpretation" id="interpretation"></div>
+      <p class="disclaimer">占卜结果仅供参考与自我省思，重大决策请咨询专业人士。</p>
+    </section>
+  </main>
+
+<script>
+  const COIN_COUNT = 3;
+  const q = document.getElementById("q");
+  const startBtn = document.getElementById("startBtn");
+  const tossArea = document.getElementById("tossArea");
+  const stage = document.getElementById("stage");
+  const tossStatus = document.getElementById("tossStatus");
+  const tossBtn = document.getElementById("tossBtn");
+  const yaoStrip = document.getElementById("yaoStrip");
+  const loading = document.getElementById("loading");
+  const result = document.getElementById("result");
+  const errorBox = document.getElementById("error");
+
+  const YAO = {6:"老阴 ⚋（变）",7:"少阳 ⚊",8:"少阴 ⚋",9:"老阳 ⚊（变）"};
+  let coinNodes = [], yaos = [], busy = false;
+
+  // ===== 模式切换：点按 / 手势 =====
+  let mode = "button"; // "button" | "gesture"
+  const modeBtnBtn = document.getElementById("modeBtnBtn");
+  const modeBtnGesture = document.getElementById("modeBtnGesture");
+  const camWrap = document.getElementById("camWrap");
+  const gestureStateEl = document.getElementById("gestureState");
+
+  modeBtnBtn.addEventListener("click", () => setMode("button"));
+  modeBtnGesture.addEventListener("click", () => setMode("gesture"));
+
+  function setMode(m) {
+    if (busy) return;
+    mode = m;
+    modeBtnBtn.classList.toggle("active", m === "button");
+    modeBtnGesture.classList.toggle("active", m === "gesture");
+    if (m === "gesture") {
+      camWrap.classList.add("show");
+      tossBtn.style.display = "none";        // 手势模式隐藏按钮
+      startGesture();
+    } else {
+      camWrap.classList.remove("show");
+      tossBtn.style.display = "block";       // 点按模式显示按钮
+      stopGesture();
+    }
+  }
+
+  // ===== MediaPipe 手势识别 =====
+  let hands = null, camera = null, gestureReady = false;
+  let lastOpen = false;        // 上一帧手是否张开
+  let gestureCooldown = false; // 抛币后冷却，防止一次动作连触发
+  const COOLDOWN_MS = 2000;    // 冷却时长，留足抛币动画时间
+  const OPEN_THRESHOLD = 4;    // 伸直手指 ≥ 此数 → 判为"张开"（含拇指共5指）
+  const CLOSE_THRESHOLD = 1;   // 伸直手指 ≤ 此数 → 判为"握拳"
+
+  // 数有几根手指伸直（含大拇指）。MediaPipe 坐标 y 向下，指尖 y < 关节 y = 伸直。
+  function countExtendedFingers(lm) {
+    let n = 0;
+    // 食/中/无名/小指：指尖 vs 近端关节
+    for (const [tip, pip] of [[8,6],[12,10],[16,14],[20,18]]) {
+      if (lm[tip].y < lm[pip].y) n++;
+    }
+    // 拇指：简化判断，指尖比其关节更靠上算伸直
+    if (lm[4].y < lm[3].y) n++;
+    return n;
+  }
+
+  async function startGesture() {
+    const cam = document.getElementById("cam");
+    if (typeof Hands === "undefined" || typeof Camera === "undefined") {
+      gestureStateEl.textContent = "手势库未加载，请检查网络或改用点按抛币";
+      return;
+    }
+    gestureStateEl.textContent = "正在请求摄像头权限…";
+    try {
+      // 先显式请求权限：被拒时这里会直接抛错，提示更清楚
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 320, height: 240, facingMode: "user" }
+      });
+      cam.srcObject = stream;
+
+      if (!hands) {
+        hands = new Hands({ locateFile: (f) =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+        hands.setOptions({
+          maxNumHands: 1, modelComplexity: 1,
+          minDetectionConfidence: 0.6, minTrackingConfidence: 0.6,
+        });
+        hands.onResults(onHandResults);
+      }
+      camera = new Camera(cam, {
+        onFrame: async () => {
+          if (mode === "gesture") await hands.send({ image: cam });
+        },
+        width: 320, height: 240,
+      });
+      await camera.start();
+      gestureReady = true;
+      gestureStateEl.textContent = "请把手张开，对准镜头";
+    } catch (e) {
+      console.error(e);
+      gestureStateEl.textContent = "无法打开摄像头，请允许权限或改用点按抛币";
+      setMode("button"); // 失败自动切回按钮兜底
+    }
+  }
+
+  function stopGesture() {
+    if (camera) { try { camera.stop(); } catch(e){} camera = null; }
+    const cam = document.getElementById("cam");
+    if (cam && cam.srcObject) {
+      cam.srcObject.getTracks().forEach(t => t.stop()); // 真正关闭摄像头
+      cam.srcObject = null;
+    }
+    gestureReady = false; lastOpen = false;
+  }
+
+  function onHandResults(results) {
+    if (mode !== "gesture" || busy || gestureCooldown) return;
+    const hasHand = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
+    if (!hasHand) {
+      gestureStateEl.textContent = "未检测到手，请把手对准镜头";
+      lastOpen = false;
+      return;
+    }
+    if (yaos.length >= 6) { gestureStateEl.textContent = "六爻已成"; return; }
+
+    const n = countExtendedFingers(results.multiHandLandmarks[0]);
+
+    if (n >= OPEN_THRESHOLD) {
+      // 张开
+      gestureStateEl.textContent = "已握住铜钱，握拳掷出 ✊";
+      lastOpen = true;
+    } else if (n <= CLOSE_THRESHOLD) {
+      // 握拳：只有"先张开、再握拳"才触发，避免一直握着连发
+      if (lastOpen) {
+        lastOpen = false;
+        gestureCooldown = true;
+        gestureStateEl.textContent = "💥 掷出！";
+        performToss().then(() => {
+          setTimeout(() => {
+            gestureCooldown = false;
+            if (yaos.length < 6) gestureStateEl.textContent = "请再次张开手，准备下一爻";
+          }, COOLDOWN_MS);
+        });
+      }
+    }
+    // 介于两阈值之间的中间状态：不改变 lastOpen，避免误判
+  }
+
+  // 建三枚铜钱（用真实图片：正面 coin-front，背面 coin-back）
+  function buildCoins() {
+    stage.innerHTML = ""; coinNodes = [];
+    for (let i=0;i<COIN_COUNT;i++){
+      const c = document.createElement("div"); c.className="coin3d";
+      const f = document.createElement("div"); f.className="coin-face";
+      f.innerHTML = '<img src="/assets/coin-front.png" alt="铜钱正面" />';
+      const b = document.createElement("div"); b.className="coin-face coin-back-face";
+      b.innerHTML = '<img src="/assets/coin-back.png" alt="铜钱背面" />';
+      c.appendChild(f); c.appendChild(b);
+      stage.appendChild(c); coinNodes.push(c);
+    }
+  }
+
+  // 抛掷动画：向上抛 + 空中翻转 + 落地轻弹
+  function throwCoins(results) {
+    return new Promise(resolve => {
+      coinNodes.forEach((c,i) => {
+        c.style.animation = "none"; void c.offsetWidth;
+        const dur = 0.85 + i*0.06;
+        c.style.animation = `throwUp ${dur}s cubic-bezier(.3,0,.5,1) forwards`;
+        setTimeout(() => {
+          const finalX = results[i] ? 0 : 180;  // 字面=正(0)，背面=180
+          c.style.animation = "none"; void c.offsetWidth;
+          c.style.transform = `rotateX(${finalX}deg)`;
+          c.style.animation = "landBounce .4s ease-out";
+        }, dur*1000);
+      });
+      setTimeout(resolve, 1120);
+    });
+  }
+
+  function drawYao(yang, changing) {
+    const bar = document.createElement("div"); bar.className="yao-bar";
+    const line = document.createElement("div");
+    line.className = "yao-line " + (yang ? "yang" : "yin");
+    line.innerHTML = yang ? '<span class="seg"></span>'
+                          : '<span class="seg"></span><span class="seg"></span>';
+    bar.appendChild(line);
+    if (changing){ const d=document.createElement("span"); d.className="yao-dot"; d.textContent="○"; bar.appendChild(d); }
+    yaoStrip.appendChild(bar);
+  }
+
+  // 抛掷一爻的核心逻辑（按钮、手势都调用它）
+  async function performToss() {
+    if (busy) return;
+    if (yaos.length >= 6) return;
+    busy = true; tossBtn.disabled = true;
+    tossStatus.textContent = "铜钱抛向空中……";
+
+    const res = coinNodes.map(()=> Math.random()<0.5); // true=字面(阳,记2)
+    await throwCoins(res);
+
+    const sum = res.reduce((s,x)=> s+(x?2:3), 0); // 6~9
+    const yang = (sum===7||sum===9), changing = (sum===6||sum===9);
+    yaos.push({ value: sum });
+    drawYao(yang, changing);
+    tossStatus.innerHTML = `三枚：${res.map(x=>x?"字":"背").join(" · ")}　点数 ${sum}　—　第 ${yaos.length} 爻 ${YAO[sum]}`;
+
+    if (yaos.length >= 6){
+      tossBtn.disabled = true;
+      tossStatus.innerHTML += "<br>六爻已成，正在为你解卦……";
+      stopGesture(); // 收尾时关掉摄像头
+      await divine();
+      busy = false;
+      return;
+    }
+    tossBtn.textContent = `抛 掷（第 ${yaos.length+1} 爻）`;
+    tossBtn.disabled = false; busy = false;
+  }
+
+  // 起卦：校验问题 → 显示掷币台
+  startBtn.addEventListener("click", () => {
+    errorBox.style.display="none";
+    if (!q.value.trim()){ errorBox.textContent="请先写下你心中所问。"; errorBox.style.display="block"; return; }
+    q.disabled = true; startBtn.style.display="none";
+    buildCoins(); tossArea.classList.add("show");
+    yaos = []; tossStatus.textContent="心中默念所问，亲手掷出第一爻";
+    tossBtn.textContent="抛 掷（第 1 爻）";
+  });
+
+  // 按钮抛掷
+  tossBtn.addEventListener("click", async () => {
+    if (yaos.length >= 6){ location.reload(); return; } // 六爻已成→重新占卜
+    await performToss();
+  });
+
+  // 把摇好的卦象 + 问题发给后端，取回卦象与解读
+  async function divine() {
+    tossArea.style.display = "none";
+    loading.classList.add("show");
+    errorBox.style.display = "none";
+    try {
+      const resp = await fetch("/api/divine", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ question: q.value.trim(), yaos })
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || "解卦失败");
+      const h = data.hexagram;
+      document.getElementById("symbols").textContent = h.upperSymbol + " " + h.lowerSymbol;
+      document.getElementById("guaName").textContent = h.fullName;
+      document.getElementById("guaMeta").textContent = h.trait + " · " + h.level;
+      document.getElementById("xiang").textContent = "象曰：" + h.xiang;
+      document.getElementById("meaning").textContent = h.meaning;
+      document.getElementById("interpretation").textContent = data.interpretation;
+      result.style.display = "block";
+    } catch(e){
+      errorBox.textContent = e.message; errorBox.style.display="block";
+      tossArea.style.display = "block";
+    } finally {
+      loading.classList.remove("show");
+    }
+  }
+</script>
+</body>
+</html>

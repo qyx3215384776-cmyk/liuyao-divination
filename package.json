@@ -1,0 +1,17 @@
+{
+  "name": "liuyao-mvp",
+  "version": "1.0.0",
+  "description": "最小可用版本：输入问题 → 摇卦(按钮) → 出本卦 → Kimi 结合问题解读。 摄像头、呼吸动画、铜钱动画、变卦展示等留待后续迭代。",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
