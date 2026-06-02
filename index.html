@@ -4,8 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>六爻 · 易经占卜</title>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
 <style>
   :root {
     --ink: #f0e8d8; --ink-soft: #c9b88f;
@@ -391,7 +391,7 @@
 
       if (!hands) {
         hands = new Hands({ locateFile: (f) =>
-          `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+          `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}` });
         hands.setOptions({
           maxNumHands: 1, modelComplexity: 1,
           minDetectionConfidence: 0.6, minTrackingConfidence: 0.6,
@@ -425,7 +425,6 @@ await camera.start();
   }
 
   function onHandResults(results) {
-  console.log('hand detected:', results.multiHandLandmarks?.length || 0);
     if (mode !== "gesture" || busy || gestureCooldown) return;
     const hasHand = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
     if (!hasHand) {
